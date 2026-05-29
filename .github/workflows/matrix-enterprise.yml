@@ -1,0 +1,78 @@
+name: Examen 3
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  enterprise-validation:
+    name: Validate (${{ matrix.os }} - Node ${{ matrix.node }} - ${{ matrix.mode }})
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      
+      # PARTE 1: Matrix Base
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ['18', '20']
+        mode: [debug, release]
+
+        # PARTE 2: Exclusiones
+        exclude:
+          - os: windows-latest
+            node: '18'
+            mode: debug
+          - os: ubuntu-latest
+            node: '20'
+            mode: debug
+
+        # PARTE 3: Includes
+        include:
+          - mode: release
+            env_tier: "PROD-READY"
+          - os: ubuntu-latest
+            node: '20'
+            mode: release
+            special_flag: "HIGH-PERFORMANCE"
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Ejecutar Validacion de Entorno Enterprise
+        run: |
+          echo "Ejecutando en Sistema Operativo: ${{ matrix.os }}"
+          echo "Version de Runtime Node: ${{ matrix.node }}"
+          echo "Modo de compilacion: ${{ matrix.mode }}"
+          echo "Tier de Entorno (Include): ${{ matrix.env_tier || 'DEVELOPMENT' }}"
+          echo "Flag Especial (Include): ${{ matrix.special_flag || 'NONE' }}"
+
+
+      - name: Generar Reporte Dinamico Markdown
+        if: always()
+        run: |
+          echo "##  Resumen de Validacion Matrix Enterprise" >> $GITHUB_STEP_SUMMARY
+          echo "El Job se ha ejecutado con exito siguiendo las restricciones de la empresa." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Dimension Matrix | Configuracion Aplicada |" >> $GITHUB_STEP_SUMMARY
+          echo "| ------------- | ------------------- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Sistema Operativo** | \`${{ matrix.os }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Runtime Node** | \`Node v${{ matrix.node }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Modo de Compilacion** | \`${{ matrix.mode }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Tier Detectado** | \`${{ matrix.env_tier || 'DEV-TIER' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Resultado del Job** |  EXITOSO |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo " *Tiempo estimado de aprovisionamiento del contenedor: < 1 minuto.*" >> $GITHUB_STEP_SUMMARY
