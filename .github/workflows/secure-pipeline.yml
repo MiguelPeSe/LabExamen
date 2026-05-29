@@ -50,5 +50,5 @@ jobs:
           
           # Esta línea pasará el secreto de forma interna a una variable o proceso. 
           # GitHub enmascarará automáticamente cualquier intento de salida con ***
-          echo "El secreto de la API es: ${{ secrets.API_SECRET_KEY }}"
+          echo "El secreto del environment es: ${{ secrets.environment }}"
           echo "¡Despliegue en producción completado de manera segura!"
