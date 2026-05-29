@@ -1,0 +1,94 @@
+name: Laboratorio 7 - Orquestador Monorepo Optimizado
+
+on:
+  push:
+    branches: [main]
+    # PARTE 2: Path Filters - El pipeline solo se activa si cambia codigo real
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'infrastucture/**'
+  workflow_dispatch:
+      # Al NO listar 'docs/**', cualquier cambio en documentacion se ignora automaticamente
+
+jobs:
+  # ----------------------------------------------------
+  # DETECTOR DE CAMBIOS (Selective Execution)
+  # ----------------------------------------------------
+  detectar-cambios:
+    runs-on: ubuntu-latest
+    # Mapeamos los outputs para que los siguientes jobs sepan que carpetas cambiaron
+    outputs:
+      frontend_changed: ${{ steps.filtro.outputs.frontend }}
+      backend_changed: ${{ steps.filtro.outputs.backend }}
+      infrastucture_changed: ${{ steps.filtro.outputs.infrastucture }}
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Permite comparar el commit actual con el anterior
+
+      - name: Analizar Rutas Modificadas
+        id: filtro
+        run: |
+          echo "=== AUDITANDO CAMBIOS EN EL MONOREPO ==="
+          
+          # Obtenemos la lista de archivos modificados en este push
+          CAMBIOS=$(git diff --name-only HEAD~1 HEAD)
+          echo "Archivos detectados: $CAMBIOS"
+          
+          # Inicializamos variables por defecto
+          echo "frontend=false" >> $GITHUB_OUTPUT
+          echo "backend=false" >> $GITHUB_OUTPUT
+          echo "infrastucture=false" >> $GITHUB_OUTPUT
+          
+          # Validacion condicional real linea por linea
+          while read -r archivo; do
+            if [[ $archivo == frontend/* ]]; then echo "frontend=true" >> $GITHUB_OUTPUT; fi
+            if [[ $archivo == backend/* ]]; then echo "backend=true" >> $GITHUB_OUTPUT; fi
+            if [[ $archivo == infrastucture/* ]]; then echo "infrastucture=true" >> $GITHUB_OUTPUT; fi
+          done <<< "$CAMBIOS"
+
+  # ----------------------------------------------------
+  # PIPELINES SELECTIVOS REUTILIZABLES (Parte 2 y 4)
+  # ----------------------------------------------------
+  pipeline-frontend:
+    needs: detectar-cambios
+    # Restriccion: Solo corre si el detector confirmo cambios en frontend
+    if: ${{ needs.detectar-cambios.outputs.frontend_changed == 'true' }}
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      component_name: 'FRONTEND-APP'
+
+  pipeline-backend:
+    needs: detectar-cambios
+    if: ${{ needs.detectar-cambios.outputs.backend_changed == 'true' }}
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      component_name: 'BACKEND-API'
+
+  pipeline-infrastucture:
+    needs: detectar-cambios
+    if: ${{ needs.needs.detectar-cambios.outputs.infrastucture_changed == 'true' }}
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      component_name: 'TERRAFORM-INFRASTUCTURE'
+
+  # ----------------------------------------------------
+  # PARTE 5: REPORTING DE AUDITORÍA CORPORATIVA
+  # ----------------------------------------------------
+  resumen-ejecucion:
+    needs: [detectar-cambios, pipeline-frontend, pipeline-backend, pipeline-infrastucture]
+    runs-on: ubuntu-latest
+    # always() asegura que se ejecute el reporte aunque jobs anteriores se hayan omitido (skipped)
+    if: always() 
+    steps:
+      - name: Generar Resumen de Eficiencia (Step Summary)
+        run: |
+          echo "### 📊 Reporte de Optimizacion Monorepo" >> $GITHUB_STEP_SUMMARY
+          echo "#### Evaluacion de Ejecucion Selectiva:" >> $GITHUB_STEP_SUMMARY
+          echo "* **Frontend Cambiado?:** \`${{ needs.detectar-cambios.outputs.frontend_changed }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "* **Backend Cambiado?:** \`${{ needs.detectar-cambios.outputs.backend_changed }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "* **Infraestructura Cambiada?:** \`${{ needs.detectar-cambios.outputs.infrastucture_changed }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "Pipeline ejecutado con exito optimizando el uso de runners." >> $GITHUB_STEP_SUMMARY
