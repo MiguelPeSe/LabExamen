@@ -1,0 +1,25 @@
+name: "Reusable Component Builder"
+
+# Indica que este workflow puede ser llamado por otro pipeline central
+on:
+  workflow_call:
+    inputs:
+      component_name:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del codigo
+        uses: actions/checkout@v4
+
+      - name: Simular Optimizacion de Construccion
+        run: |
+          echo "=== PROCESANDO COMPONENTE: ${{ inputs.component_name }} ==="
+          echo "[INFO] Cargando cache de dependencias para ahorrar tiempo de CPU..."
+          echo "[OK] Compilando recursos de forma aislada..."
+          sleep 3 # Simula el proceso de construccion
+          echo "[SUCCESS] Compilacion de ${{ inputs.component_name }} finalizada."
+          echo test, and deploy your project.
